@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Test - Ceptiv Cloud Demo</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0a; --surface: #18181b; --border: #27272a; --hover: #27272a;
+      --text: #fafafa; --muted: #a1a1aa; --dim: #71717a;
+      --primary: #6366f1; --primary-hover: #818cf8;
+      --green: #22c55e; --red: #ef4444;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .app-nav { display: flex; justify-content: center; gap: 0; border-bottom: 1px solid var(--border); padding-top: 1.5rem; background: var(--surface); }
+    .app-nav button { padding: 0.75rem 2rem; font-size: 0.95rem; font-weight: 500; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
+    .app-nav button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .app-nav button:hover:not(.active) { color: var(--text); }
+
+    .container { width: 100%; max-width: 700px; margin: 0 auto; padding: 2rem 1rem; }
+    .header { text-align: center; margin-bottom: 2rem; }
+    .header h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .header p { color: var(--muted); font-size: 0.9rem; }
+    .badge { display: inline-block; margin-top: 0.5rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.7rem; background: rgba(99,102,241,0.15); color: var(--primary); }
+    .badge.ok { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge.err { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .add-form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .add-form input, .caption-row input { flex: 1; padding: 0.7rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.95rem; outline: none; transition: border-color 0.15s; }
+    .add-form input:focus, .caption-row input:focus { border-color: var(--primary); }
+    .btn { padding: 0.7rem 1.25rem; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .todo-list { list-style: none; }
+    .todo-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1.1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 0.4rem; transition: all 0.15s; }
+    .todo-item:hover { border-color: #3f3f46; }
+    .todo-item.completed .todo-title { text-decoration: line-through; color: var(--dim); }
+    .checkbox { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+    .checkbox:hover { border-color: var(--primary); }
+    .checkbox.checked { background: var(--green); border-color: var(--green); }
+    .checkbox.checked::after { content: ''; display: block; width: 5px; height: 9px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-1px); }
+    .todo-title { flex: 1; font-size: 0.95rem; }
+    .todo-time { font-size: 0.7rem; color: var(--dim); }
+    .delete-btn { width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent; color: var(--dim); cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .delete-btn:hover { background: rgba(239,68,68,0.15); color: var(--red); }
+    .stats { display: flex; justify-content: space-between; padding: 0.6rem 0; margin-top: 0.75rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
+    .empty { text-align: center; color: var(--dim); padding: 2.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+
+    .upload-area { border: 2px dashed var(--border); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem; background: var(--surface); }
+    .upload-area:hover, .upload-area.dragover { border-color: var(--primary); background: rgba(99,102,241,0.05); }
+    .upload-area p { color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem; }
+    .upload-area .icon { font-size: 2rem; margin-bottom: 0.25rem; }
+    .upload-area input[type=file] { display: none; }
+
+    .preview-area { position: relative; margin-bottom: 1rem; }
+    .preview-area img { width: 100%; max-height: 400px; object-fit: contain; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); }
+    .preview-area .remove-preview { position: absolute; top: 0.5rem; right: 0.5rem; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,0.7); color: white; border: none; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+    .caption-row { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .post-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: all 0.2s; }
+    .post-card:hover { border-color: #3f3f46; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+    .post-card img { width: 100%; height: 200px; object-fit: cover; cursor: pointer; }
+    .post-card .post-info { padding: 0.75rem; }
+    .post-card .post-caption { font-size: 0.85rem; color: var(--text); margin-bottom: 0.35rem; word-break: break-word; }
+    .post-card .post-meta { display: flex; justify-content: space-between; align-items: center; }
+    .post-card .post-date { font-size: 0.7rem; color: var(--dim); }
+    .post-card .post-delete { width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: var(--dim); cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
+    .post-card .post-delete:hover { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; z-index: 100; cursor: pointer; animation: fadeIn 0.15s; }
+    .lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 8px; cursor: default; }
+    .lightbox .close-lb { position: absolute; top: 1rem; right: 1.5rem; font-size: 1.5rem; color: white; background: none; border: none; cursor: pointer; opacity: 0.7; }
+    .lightbox .close-lb:hover { opacity: 1; }
+    .lightbox .lb-caption { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); color: white; font-size: 0.95rem; background: rgba(0,0,0,0.6); padding: 0.5rem 1.25rem; border-radius: 8px; max-width: 80vw; text-align: center; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .error-box { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; color: var(--red); font-size: 0.85rem; word-break: break-all; }
+    .connection-info { margin-top: 2rem; padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-size: 0.75rem; color: var(--dim); text-align: center; }
+    .connection-info code { color: var(--muted); background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+
+  <nav class="app-nav">
+    <button id="tab-todos" class="active" onclick="switchTab('todos')">Todos</button>
+    <button id="tab-images" onclick="switchTab('images')">Images</button>
+  </nav>
+
+  <!-- TODOS TAB -->
+  <div id="page-todos" class="container">
+    <div class="header">
+      <h1>Todo List</h1>
+      <p>Track your tasks</p>
+      <span class="badge" id="status">Loading...</span>
+    </div>
+    <div id="todoError"></div>
+    <div class="add-form">
+      <input type="text" id="newTodo" placeholder="What needs to be done?" autocomplete="off" />
+      <button class="btn" onclick="addTodo()" id="addBtn">Add</button>
+    </div>
+    <ul class="todo-list" id="todoList"></ul>
+    <div class="stats" id="stats" style="display:none">
+      <span id="todoCount"></span>
+      <span id="completedCount"></span>
+    </div>
+    <div class="connection-info">
+      Connected to <code>app-test.cloud.ceptiv.net</code> | DB: <code>ceptiv_app_test</code>
+    </div>
+  </div>
+
+  <!-- IMAGES TAB -->
+  <div id="page-images" class="container" style="display:none">
+    <div class="header">
+      <h1>Image Gallery</h1>
+      <p>Upload and view your images</p>
+      <span class="badge" id="img-count">0 images</span>
+    </div>
+    <div id="imgError"></div>
+    <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">+</div>
+      <p>Click or drag an image here to upload</p>
+      <p style="font-size:0.75rem;color:var(--dim);margin-top:0.35rem">JPG, PNG, GIF, WebP - max 5 MB</p>
+      <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)" />
+    </div>
+    <div id="previewArea" class="preview-area" style="display:none">
+      <img id="previewImg" />
+      <button class="remove-preview" onclick="clearPreview()">x</button>
+    </div>
+    <div id="captionRow" class="caption-row" style="display:none">
+      <input type="text" id="captionInput" placeholder="Add a caption (optional)" autocomplete="off" />
+      <button class="btn" onclick="postImage()" id="postBtn">Post</button>
+    </div>
+    <div id="gallery" class="gallery"></div>
+    <div id="emptyGallery" class="empty" style="display:none"><p>No images yet. Upload one above!</p></div>
+    <div class="connection-info">
+      Connected to <code>app-test.cloud.ceptiv.net</code> | Table: <code>public.posts</code>. For storage uploads, create bucket <code>images</code> (public) in the Ceptiv Dashboard → Project → Storage tab.
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" style="display:none" onclick="closeLightbox(event)">
+    <button class="close-lb" onclick="closeLightbox(event)">x</button>
+    <img id="lbImg" />
+    <div class="lb-caption" id="lbCaption"></div>
+  </div>
+
+<script>
+  // ===== CONFIG =====
+  const API = 'https://app-test.cloud.ceptiv.net';
+  const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzcwNTUzNTIyLCJleHAiOjIwODU5MTM1MjJ9.NLj4m4eNQ8lQlm5S0oWF12Jfw3LTk9WWcslvJjhpsUA';
+
+  const headers = {
+    'apikey': KEY,
+    'Authorization': 'Bearer ' + KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation',
+  };
+
+  // Simple REST helper
+  async function rest(path, opts = {}) {
+    const res = await fetch(API + '/rest/v1' + path, {
+      method: opts.method || 'GET',
+      headers: { ...headers, ...(opts.headers || {}) },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  // ===== TAB SWITCHING =====
+  let currentTab = 'todos';
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('page-todos').style.display = tab === 'todos' ? 'block' : 'none';
+    document.getElementById('page-images').style.display = tab === 'images' ? 'block' : 'none';
+    document.getElementById('tab-todos').className = tab === 'todos' ? 'active' : '';
+    document.getElementById('tab-images').className = tab === 'images' ? 'active' : '';
+    if (tab === 'images' && posts.length === 0 && !postsLoaded) loadPosts();
+  }
+
+  // ===== TODOS =====
+  let todos = [];
+
+  async function loadTodos() {
+    try {
+      const { ok, data, status } = await rest('/todos?select=*&order=created_at.desc');
+      if (!ok) {
+        document.getElementById('todoError').innerHTML = '<div class="error-box">API Error ' + status + ': ' + (typeof data === 'object' ? JSON.stringify(data) : data) + '</div>';
+        document.getElementById('status').textContent = 'Error';
+        document.getElementById('status').className = 'badge err';
+        return;
+      }
+      todos = data;
+      document.getElementById('status').textContent = 'Connected';
+      document.getElementById('status').className = 'badge ok';
+      renderTodos();
+    } catch (e) {
+      document.getElementById('todoError').innerHTML = '<div class="error-box">Network Error: ' + e.message + '</div>';
+      document.getElementById('status').textContent = 'Offline';
+      document.getElementById('status').className = 'badge err';
+    }
+  }
+
+  function renderTodos() {
+    const list = document.getElementById('todoList');
+    if (todos.length === 0) { list.innerHTML = '<li class="empty">No todos yet. Add one above!</li>'; document.getElementById('stats').style.display = 'none'; return; }
+    list.innerHTML = todos.map(t => {
+      const escaped = escapeHtml(t.title);
+      return '<li class="todo-item ' + (t.completed ? 'completed' : '') + '">' +
+        '<button class="checkbox ' + (t.completed ? 'checked' : '') + '" onclick="toggleTodo(\'' + t.id + '\',' + !t.completed + ')"></button>' +
+        '<span class="todo-title">' + escaped + '</span>' +
+        '<span class="todo-time">' + timeAgo(t.created_at) + '</span>' +
+        '<button class="delete-btn" onclick="deleteTodo(\'' + t.id + '\')" title="Delete">x</button>' +
+        '</li>';
+    }).join('');
+    const completed = todos.filter(t => t.completed).length;
+    document.getElementById('stats').style.display = 'flex';
+    document.getElementById('todoCount').textContent = todos.length + ' todo' + (todos.length !== 1 ? 's' : '');
+    document.getElementById('completedCount').textContent = completed + ' completed';
+  }
+
+  async function addTodo() {
+    const input = document.getElementById('newTodo');
+    const title = input.value.trim();
+    if (!title) return;
+    document.getElementById('addBtn').disabled = true;
+    try {
+      const { ok, data } = await rest('/todos', { method: 'POST', body: { title } });
+      if (ok && Array.isArray(data) && data[0]) { input.value = ''; todos.unshift(data[0]); renderTodos(); }
+    } catch (e) { console.error('Add todo error:', e); }
+    document.getElementById('addBtn').disabled = false;
+  }
+
+  async function toggleTodo(id, completed) {
+    try {
+      await rest('/todos?id=eq.' + id, { method: 'PATCH', body: { completed, updated_at: new Date().toISOString() } });
+      const t = todos.find(x => x.id === id);
+      if (t) { t.completed = completed; renderTodos(); }
+    } catch (e) { console.error('Toggle error:', e); }
+  }
+
+  async function deleteTodo(id) {
+    try {
+      await rest('/todos?id=eq.' + id, { method: 'DELETE' });
+      todos = todos.filter(t => t.id !== id);
+      renderTodos();
+    } catch (e) { console.error('Delete error:', e); }
+  }
+
+  // ===== IMAGES =====
+  const STORAGE_BUCKET = 'images';
+  let posts = [];
+  let postsLoaded = false;
+  let pendingImage = null;
+  let pendingFile = null;
+
+  async function loadPosts() {
+    try {
+      const { ok, data } = await rest('/posts?select=*&order=created_at.desc');
+      if (ok) { posts = data || []; postsLoaded = true; }
+    } catch (e) {
+      document.getElementById('imgError').innerHTML = '<div class="error-box">Load error: ' + e.message + '</div>';
+    }
+    document.getElementById('img-count').textContent = posts.length + ' image' + (posts.length !== 1 ? 's' : '');
+    renderGallery();
+  }
+
+  function renderGallery() {
+    const gallery = document.getElementById('gallery');
+    const empty = document.getElementById('emptyGallery');
+    if (posts.length === 0) { gallery.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    gallery.innerHTML = posts.map(p => {
+      const imgSrc = p.image_url || p.image_data;
+      if (!imgSrc) return '';
+      const cap = p.caption ? '<div class="post-caption">' + escapeHtml(p.caption) + '</div>' : '';
+      return '<div class="post-card">' +
+        '<img src="' + imgSrc + '" alt="' + escapeHtml(p.caption || '') + '" onclick="openLightbox(\'' + p.id + '\')" loading="lazy" />' +
+        '<div class="post-info">' + cap +
+        '<div class="post-meta"><span class="post-date">' + timeAgo(p.created_at) + '</span>' +
+        '<button class="post-delete" onclick="deletePost(\'' + p.id + '\')" title="Delete">x</button></div></div></div>';
+    }).join('');
+  }
+
+  function handleFileSelect(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+  function processFile(file) {
+    if (!file.type.startsWith('image/')) { alert('Please select an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB.'); return; }
+    pendingFile = file;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      pendingImage = e.target.result;
+      document.getElementById('previewImg').src = pendingImage;
+      document.getElementById('previewArea').style.display = 'block';
+      document.getElementById('captionRow').style.display = 'flex';
+      document.getElementById('uploadArea').style.display = 'none';
+      document.getElementById('captionInput').focus();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearPreview() {
+    pendingImage = null;
+    pendingFile = null;
+    document.getElementById('previewArea').style.display = 'none';
+    document.getElementById('captionRow').style.display = 'none';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('captionInput').value = '';
+  }
+
+  async function postImage() {
+    if (!pendingImage) return;
+    var caption = document.getElementById('captionInput').value.trim();
+    var btn = document.getElementById('postBtn');
+    btn.disabled = true;
+    btn.textContent = 'Posting...';
+    try {
+      var imageUrl = null;
+      if (pendingFile) {
+        var filename = pendingFile.name.replace(/[^a-zA-Z0-9._-]/g, '_') || 'image';
+        if (!filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) filename += '.jpg';
+        var path = Date.now() + '_' + filename;
+        var formData = new FormData();
+        formData.append('file', pendingFile);
+        var storageRes = await fetch(API + '/storage/v1/object/' + STORAGE_BUCKET + '/' + encodeURIComponent(path), {
+          method: 'POST',
+          headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY },
+          body: formData,
+        });
+        if (storageRes.ok) {
+          imageUrl = API + '/storage/v1/object/public/' + STORAGE_BUCKET + '/' + encodeURIComponent(path);
+        }
+      }
+      var body = imageUrl ? { image_url: imageUrl, caption: caption } : { image_data: pendingImage, caption: caption };
+      const { ok, data } = await rest('/posts', { method: 'POST', body: body });
+      if (ok && Array.isArray(data) && data[0]) {
+        posts.unshift(data[0]);
+        document.getElementById('img-count').textContent = posts.length + ' image' + (posts.length !== 1 ? 's' : '');
+        renderGallery();
+        clearPreview();
+      } else {
+        alert('Upload failed: ' + JSON.stringify(data));
+      }
+    } catch (e) { alert('Upload error: ' + e.message); }
+    btn.disabled = false;
+    btn.textContent = 'Post';
+  }
+
+  async function deletePost(id) {
+    if (!confirm('Delete this image?')) return;
+    try {
+      await rest('/posts?id=eq.' + id, { method: 'DELETE' });
+      posts = posts.filter(p => p.id !== id);
+      document.getElementById('img-count').textContent = posts.length + ' image' + (posts.length !== 1 ? 's' : '');
+      renderGallery();
+    } catch (e) { console.error('Delete post error:', e); }
+  }
+
+  function openLightbox(id) {
+    var post = posts.find(function(p) { return p.id === id; });
+    if (!post) return;
+    document.getElementById('lbImg').src = post.image_url || post.image_data;
+    document.getElementById('lbCaption').textContent = post.caption || '';
+    document.getElementById('lbCaption').style.display = post.caption ? 'block' : 'none';
+    document.getElementById('lightbox').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox(e) {
+    if (e && e.target !== e.currentTarget && !e.target.classList.contains('close-lb')) return;
+    document.getElementById('lightbox').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  // Drag and drop
+  var uploadEl = document.getElementById('uploadArea');
+  uploadEl.addEventListener('dragover', function(e) { e.preventDefault(); uploadEl.classList.add('dragover'); });
+  uploadEl.addEventListener('dragleave', function() { uploadEl.classList.remove('dragover'); });
+  uploadEl.addEventListener('drop', function(e) { e.preventDefault(); uploadEl.classList.remove('dragover'); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
+
+  // Keyboard
+  document.getElementById('newTodo').addEventListener('keydown', function(e) { if (e.key === 'Enter') addTodo(); });
+  document.getElementById('captionInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') postImage(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeLightbox(e); });
+
+  // ===== HELPERS =====
+  function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+  function timeAgo(date) {
+    var s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s/60) + 'm ago';
+    if (s < 86400) return Math.floor(s/3600) + 'h ago';
+    return Math.floor(s/86400) + 'd ago';
+  }
+
+  // ===== INIT =====
+  loadTodos();
+</script>
+</body>
+</html>

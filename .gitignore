@@ -1,0 +1,14 @@
+# Env with keys - use .env.example as template
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+.idea
+.vscode
