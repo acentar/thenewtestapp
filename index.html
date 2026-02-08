@@ -137,7 +137,7 @@
     <div id="gallery" class="gallery"></div>
     <div id="emptyGallery" class="empty" style="display:none"><p>No images yet. Upload one above!</p></div>
     <div class="connection-info">
-      Connected to <code>app-test.cloud.ceptiv.net</code> | Table: <code>public.posts</code>. For storage uploads, create bucket <code>images</code> (public) in the Ceptiv Dashboard → Project → Storage tab.
+      Connected to <code>app-test.cloud.ceptiv.net</code> | Table: <code>public.posts</code> | Bucket: <code>images</code> (public)
     </div>
   </div>
 
@@ -294,19 +294,17 @@
     if (!file.type.startsWith('image/')) { alert('Please select an image file.'); return; }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB.'); return; }
     pendingFile = file;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      pendingImage = e.target.result;
-      document.getElementById('previewImg').src = pendingImage;
-      document.getElementById('previewArea').style.display = 'block';
-      document.getElementById('captionRow').style.display = 'flex';
-      document.getElementById('uploadArea').style.display = 'none';
-      document.getElementById('captionInput').focus();
-    };
-    reader.readAsDataURL(file);
+    // Use object URL for preview (no base64 needed)
+    pendingImage = URL.createObjectURL(file);
+    document.getElementById('previewImg').src = pendingImage;
+    document.getElementById('previewArea').style.display = 'block';
+    document.getElementById('captionRow').style.display = 'flex';
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('captionInput').focus();
   }
 
   function clearPreview() {
+    if (pendingImage) URL.revokeObjectURL(pendingImage);
     pendingImage = null;
     pendingFile = null;
     document.getElementById('previewArea').style.display = 'none';
@@ -317,37 +315,38 @@
   }
 
   async function postImage() {
-    if (!pendingImage) return;
+    if (!pendingFile) return;
     var caption = document.getElementById('captionInput').value.trim();
     var btn = document.getElementById('postBtn');
     btn.disabled = true;
-    btn.textContent = 'Posting...';
+    btn.textContent = 'Uploading...';
     try {
-      var imageUrl = null;
-      if (pendingFile) {
-        var filename = pendingFile.name.replace(/[^a-zA-Z0-9._-]/g, '_') || 'image';
-        if (!filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) filename += '.jpg';
-        var path = Date.now() + '_' + filename;
-        var formData = new FormData();
-        formData.append('file', pendingFile);
-        var storageRes = await fetch(API + '/storage/v1/object/' + STORAGE_BUCKET + '/' + encodeURIComponent(path), {
-          method: 'POST',
-          headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY },
-          body: formData,
-        });
-        if (storageRes.ok) {
-          imageUrl = API + '/storage/v1/object/public/' + STORAGE_BUCKET + '/' + encodeURIComponent(path);
-        }
+      // Upload file to Supabase Storage bucket
+      var filename = pendingFile.name.replace(/[^a-zA-Z0-9._-]/g, '_') || 'image';
+      if (!filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) filename += '.jpg';
+      var path = Date.now() + '_' + filename;
+      var storageRes = await fetch(API + '/storage/v1/object/' + STORAGE_BUCKET + '/' + encodeURIComponent(path), {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY },
+        body: pendingFile,
+      });
+      if (!storageRes.ok) {
+        var errText = await storageRes.text();
+        alert('Storage upload failed (' + storageRes.status + '): ' + errText);
+        btn.disabled = false;
+        btn.textContent = 'Post';
+        return;
       }
-      var body = imageUrl ? { image_url: imageUrl, caption: caption } : { image_data: pendingImage, caption: caption };
-      const { ok, data } = await rest('/posts', { method: 'POST', body: body });
+      var imageUrl = API + '/storage/v1/object/public/' + STORAGE_BUCKET + '/' + encodeURIComponent(path);
+      btn.textContent = 'Saving...';
+      const { ok, data } = await rest('/posts', { method: 'POST', body: { image_url: imageUrl, caption: caption } });
       if (ok && Array.isArray(data) && data[0]) {
         posts.unshift(data[0]);
         document.getElementById('img-count').textContent = posts.length + ' image' + (posts.length !== 1 ? 's' : '');
         renderGallery();
         clearPreview();
       } else {
-        alert('Upload failed: ' + JSON.stringify(data));
+        alert('Save failed: ' + JSON.stringify(data));
       }
     } catch (e) { alert('Upload error: ' + e.message); }
     btn.disabled = false;
@@ -357,6 +356,18 @@
   async function deletePost(id) {
     if (!confirm('Delete this image?')) return;
     try {
+      // Find the post to get the storage path for cleanup
+      var post = posts.find(function(p) { return p.id === id; });
+      if (post && post.image_url) {
+        // Extract path from URL: .../object/public/images/FILENAME -> images/FILENAME
+        var urlParts = post.image_url.split('/storage/v1/object/public/');
+        if (urlParts[1]) {
+          await fetch(API + '/storage/v1/object/' + decodeURIComponent(urlParts[1]), {
+            method: 'DELETE',
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY },
+          });
+        }
+      }
       await rest('/posts?id=eq.' + id, { method: 'DELETE' });
       posts = posts.filter(p => p.id !== id);
       document.getElementById('img-count').textContent = posts.length + ' image' + (posts.length !== 1 ? 's' : '');
